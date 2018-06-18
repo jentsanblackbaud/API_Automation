@@ -20,8 +20,8 @@ function mainFunction {
     $subscriptionKey = $fileContent.SubscriptionKey
 
     # Api Management service specific details
-    $serviceName = $fileContent.ServiceName #"jentsan"
-    $resourceGroupName = $fileContent.ResourceGroupName #"interns"
+    $serviceName = $fileContent.ServiceName
+    $resourceGroupName = $fileContent.ResourceGroupName
     $productId = "unlimited"
 
     # Set the context to the subscription Id where the cluster will be created
