@@ -80,6 +80,7 @@
         # Get all APIM operations
         $operationsArray = Get-AzureRmApiManagementOperation -Context $context -ApiId $apiId
 
+        # Download swagger file of new API to get the request body examples
         $swaggerFile = $fileContent.ExportFilePath + $apiPath + ".swagger"
 
         # Get the swagger file for the API endpoint for testing later
@@ -89,8 +90,11 @@
         foreach($operation in $operationsArray) {
             $operationId = $operation.OperationId
             $operationName = $operation.Name
+            
+            # Read from the config file the policies that need to be added to the operations
+            $policiesToAdd = $fileContent.Policies
 
-            # Remove any operations that aren't needed (Ping, SessionStart, SessionEnd)
+            # Remove any operations that aren't needed (Ping, SessionStart, SessionEnd), this does not change the swagger file
             If ($operationName -eq "Ping" -or $operationName -eq "SessionStart" -or $operationName -eq "SessionEnd") {
                 Remove-AzureRmApiManagementOperation -Context $context -ApiId $apiId -OperationId $operationId
                 Write-Host "Removed " $operationName " operation`n" -ForegroundColor Green
@@ -102,17 +106,15 @@
                 $headers.Add("Content-Type", "application/json")
                 $headers.Add("Ocp-Apim-Trace", "true")
 
-                # This gets the policies in the inbound and outbound, could parse it and sub in variables in the request body
-                $policy = Get-AzureRmApiManagementPolicy -Context $context -ApiId $apiId -OperationId $operationId -Format "json"
-
-                #get the swagger for each endpoint (outside of the current loop), look at definitions and check each operation to see if it matches the current operation, if it matches, save it to the body (may have to format it first)
-                #look at the yaml definitions
-                $requestBody = extractRequestBodyExample -operation $operationName -file $swaggerFile
-
-                $resp = Invoke-WebRequest -Uri $operationURL -Headers $headers -Body $requestBody -Credential $fileContent.Credential # This works, just need to find a way to customize the body for each
-
-                "Status code: " + $resp.StatusCode # This works, just need to complete Invoke-Webrequest
-                "Status description: " + $resp.StatusDescription # This works, just need to complete Invoke-Webrequest
+                # Get the operation's policy to modify it and set it
+                [string]$policy = Get-AzureRmApiManagementPolicy -Context $context -ApiId $apiId -OperationId $operationId
+                # Split policy and add necessary pieces
+                $separator = '</inbound>'
+                $splitIndex = $policy.LastIndexOf($separator)
+                $firstHalf = $policy.Substring(0,$splitIndex)
+                $secondHalf = $policy.Substring($splitIndex)
+                $policyString = $firstHalf + $policiesToAdd + $secondHalf
+                Set-AzureRmApiManagementPolicy -Context $context -ApiId $apiId -OperationId $operationId -Policy $policyString
 
                 Write-Host "Operation " $operation.Name ": Complete`n" -ForegroundColor Green
             }
@@ -151,7 +153,7 @@ function extractRequestBodyExample {
             $noSlash = $noNewLines.Replace("\", "")
             $noColon = $noSlash.Replace(":", "=")
             $noComma = $noColon.Replace(",", "")
-            $final = $noComma.Replace("sample", "00000000-0000-0000-0000-000000000000")
+            $final = "@" + $noComma.Replace("sample", "00000000-0000-0000-0000-000000000000")
             return $final
             break
         }
@@ -189,8 +191,5 @@ function login {
     Write-Host "Set Azure Subscription for session complete`n"  -ForegroundColor Green
     
 }
-<<<<<<< HEAD
 
 mainFunction
-=======
->>>>>>> d4e204ede4da9ac4d24e8d535a71b7d354d36f5d
