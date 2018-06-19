@@ -30,8 +30,7 @@ foreach ($endpoint in $fileContent) {
 
     [string]$outputPath = $outputPath + "\" + $endpointName + ".swagger"
 
-    $url
-    $outputPath
+    Write-Host "Saved: " $outputPath "`n" -ForegroundColor Green
 
     Invoke-WebRequest -Uri $url -outFile $outputPath -Credential $credential
 }
