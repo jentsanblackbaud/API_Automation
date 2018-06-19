@@ -189,5 +189,8 @@ function login {
     Write-Host "Set Azure Subscription for session complete`n"  -ForegroundColor Green
     
 }
+<<<<<<< HEAD
 
 mainFunction
+=======
+>>>>>>> d4e204ede4da9ac4d24e8d535a71b7d354d36f5d
