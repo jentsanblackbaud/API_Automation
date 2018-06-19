@@ -1,6 +1,4 @@
-﻿mainFunction
-
-function mainFunction {
+﻿function mainFunction {
     #read config file
     $configPath = "C:\Users\jennifer.tsan\Documents"
     $fileName ="\WSDLConfig.csv"
@@ -20,8 +18,8 @@ function mainFunction {
     $subscriptionKey = $fileContent.SubscriptionKey
 
     # Api Management service specific details
-    $serviceName = $fileContent.ServiceName #"jentsan"
-    $resourceGroupName = $fileContent.ResourceGroupName #"interns"
+    $serviceName = $fileContent.ServiceName
+    $resourceGroupName = $fileContent.ResourceGroupName
     $productId = "unlimited"
 
     # Set the context to the subscription Id where the cluster will be created
@@ -82,17 +80,23 @@ function mainFunction {
         # Get all APIM operations
         $operationsArray = Get-AzureRmApiManagementOperation -Context $context -ApiId $apiId
 
+        $swaggerFile = $fileContent.ExportFilePath + $apiPath + ".swagger"
+
+        # Get the swagger file for the API endpoint for testing later
+        Export-AzureRmApiManagementApi -Context $context -ApiId $apiId -SpecificationFormat Swagger -SaveAs $swaggerFile
+
         # for each operation in the newly imported API, delete unnecessary operations, and test the operations
         foreach($operation in $operationsArray) {
             $operationId = $operation.OperationId
+            $operationName = $operation.Name
 
             # Remove any operations that aren't needed (Ping, SessionStart, SessionEnd)
-            If ($operation.Name -eq "Ping" -or $operation.Name -eq "SessionStart" -or $operation.Name -eq "SessionEnd") {
+            If ($operationName -eq "Ping" -or $operationName -eq "SessionStart" -or $operationName -eq "SessionEnd") {
                 Remove-AzureRmApiManagementOperation -Context $context -ApiId $apiId -OperationId $operationId
-                Write-Host "Removed " $operation.Name " operation`n" -ForegroundColor Green
+                Write-Host "Removed " $operationName " operation`n" -ForegroundColor Green
             } Else {
                 # Check each operation to see if it gets a 200 ok
-                $operationURL = $fileContent.APIPathBegining + $apiPath + $fileContent.APIPathMiddle + $operation.Name
+                $operationURL = $fileContent.APIPathBegining + $apiPath + $fileContent.APIPathMiddle + $operationName
                 $method = "POST"
                 $headers = @{"Ocp-Apim-Subscription-Key"= $subscriptionKey}
                 $headers.Add("Content-Type", "application/json")
@@ -100,6 +104,15 @@ function mainFunction {
 
                 # This gets the policies in the inbound and outbound, could parse it and sub in variables in the request body
                 $policy = Get-AzureRmApiManagementPolicy -Context $context -ApiId $apiId -OperationId $operationId -Format "json"
+
+                #get the swagger for each endpoint (outside of the current loop), look at definitions and check each operation to see if it matches the current operation, if it matches, save it to the body (may have to format it first)
+                #look at the yaml definitions
+                $requestBody = extractRequestBodyExample -operation $operationName -file $swaggerFile
+
+                $resp = Invoke-WebRequest -Uri $operationURL -Headers $headers -Body $requestBody -Credential $fileContent.Credential # This works, just need to find a way to customize the body for each
+
+                "Status code: " + $resp.StatusCode # This works, just need to complete Invoke-Webrequest
+                "Status description: " + $resp.StatusDescription # This works, just need to complete Invoke-Webrequest
 
                 Write-Host "Operation " $operation.Name ": Complete`n" -ForegroundColor Green
             }
@@ -109,6 +122,40 @@ function mainFunction {
     }
 
     Write-Host "All processes Complete" -ForegroundColor Green
+}
+
+function extractRequestBodyExample {
+    param([string]$operation, [string]$file)
+    
+    $foundOp = 0
+    $foundExample = 0
+    $trimmedExample = ""
+    $final = ""
+    $line = ""
+
+    Get-Content $file | ForEach-Object {
+        #run through, find matching operation, mark foundOp boolean to true, then start looking for the example right after that operation, mark foundEx to true, save the substring of the request body and exit loop
+        $line = $_
+
+        if($line -like ('*' + $operation + 'Request":*') -and -Not $foundOp) {
+            $foundOp = 1
+        }
+        if($foundOp -and $line -like ('*"example":*') -and -Not $foundExample) {
+            $foundExample = 1
+            #after a the example is found, format it so it can be sent in a request
+            $trimmedExample = $line.Trim()
+            $length = $trimmedExample.Length
+            $endOfSubstring = $length- 1 - 12
+            $sub = $trimmedExample.Substring(12, $endOfSubstring)
+            $noNewLines = $sub.Replace("\r\n", "")
+            $noSlash = $noNewLines.Replace("\", "")
+            $noColon = $noSlash.Replace(":", "=")
+            $noComma = $noColon.Replace(",", "")
+            $final = $noComma.Replace("sample", "00000000-0000-0000-0000-000000000000")
+            return $final
+            break
+        }
+    }
 }
 
 function extractSubstring {
@@ -142,3 +189,5 @@ function login {
     Write-Host "Set Azure Subscription for session complete`n"  -ForegroundColor Green
     
 }
+
+mainFunction
