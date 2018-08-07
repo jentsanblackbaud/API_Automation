@@ -70,21 +70,22 @@
         Add-AzureRmApiManagementApiToProduct -Context $context -ProductId $productId -ApiId $apiId
         Write-Host "Added API to published Product`n" -ForegroundColor Green
 
-        # Get necessary info for the policy string
-        # Info for rewriteUri Template
-        $rewriteBeginning = $fileContent.RewriteBeginning
-        $rewriteEnding = "soap.asmx"
-        $rewriteUriTemplate = extractSubstring -beginningstring $rewriteBeginning -endingstring $rewriteEnding -last 0
-        $rewriteUriTemplate = $rewriteUriTemplate + $rewriteEnding
-
         # Get all APIM operations
         $operationsArray = Get-AzureRmApiManagementOperation -Context $context -ApiId $apiId
 
+        # jennifer.tsan the commented out lines gathers information that would be needed to test whether an API call
+        # Get necessary info for the policy string
+        # Info for rewriteUri Template
+        #$rewriteBeginning = $fileContent.RewriteBeginning
+        #$rewriteEnding = "soap.asmx"
+        #$rewriteUriTemplate = extractSubstring -beginningstring $rewriteBeginning -endingstring $rewriteEnding -last 0
+        #$rewriteUriTemplate = $rewriteUriTemplate + $rewriteEnding
+
         # Download swagger file of new API to get the request body examples
-        $swaggerFile = $fileContent.ExportFilePath + $apiPath + ".swagger"
+        ##$swaggerFile = $fileContent.ExportFilePath + $apiPath + ".swagger"
 
         # Get the swagger file for the API endpoint for testing later
-        Export-AzureRmApiManagementApi -Context $context -ApiId $apiId -SpecificationFormat Swagger -SaveAs $swaggerFile
+        ##Export-AzureRmApiManagementApi -Context $context -ApiId $apiId -SpecificationFormat Swagger -SaveAs $swaggerFile
 
         # for each operation in the newly imported API, delete unnecessary operations, and test the operations
         foreach($operation in $operationsArray) {
@@ -100,11 +101,11 @@
                 Write-Host "Removed " $operationName " operation`n" -ForegroundColor Green
             } Else {
                 # Check each operation to see if it gets a 200 ok
-                $operationURL = $fileContent.APIPathBegining + $apiPath + $fileContent.APIPathMiddle + $operationName
-                $method = "POST"
-                $headers = @{"Ocp-Apim-Subscription-Key"= $subscriptionKey}
-                $headers.Add("Content-Type", "application/json")
-                $headers.Add("Ocp-Apim-Trace", "true")
+                ##$operationURL = $fileContent.APIPathBegining + $apiPath + $fileContent.APIPathMiddle + $operationName
+                ##$method = "POST"
+                ##$headers = @{"Ocp-Apim-Subscription-Key"= $subscriptionKey}
+                ##$headers.Add("Content-Type", "application/json")
+                ##$headers.Add("Ocp-Apim-Trace", "true")
 
                 # Get the operation's policy to modify it and set it
                 [string]$policy = Get-AzureRmApiManagementPolicy -Context $context -ApiId $apiId -OperationId $operationId
