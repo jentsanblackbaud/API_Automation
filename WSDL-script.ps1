@@ -8,7 +8,7 @@
     #login to azure first if necessary
     $profilePath = $fileContent.ProfilePath
     $subscriptionName = "REx"
-    login -profilepath $profilePath -subscriptionname $subscriptionName #try to prompt user for file
+    login -profilepath $profilePath -subscriptionname $subscriptionName 
     
     # Set $DebugPreference to "Continue" for more information when getting errors. Set it to "SilentlyContinue" to hide those details
     $DebugPreference="SilentlyContinue"
